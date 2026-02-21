@@ -1,0 +1,92 @@
+import requests
+from bs4 import BeautifulSoup
+
+# ---------- CONFIG ----------
+sql_payload = "' OR '1'='1"
+xss_payload = "<script>alert(1)</script>"
+
+def check_headers(url):
+    print("\n[+] Checking Security Headers...")
+    try:
+        response = requests.get(url)
+        headers = response.headers
+
+        important_headers = [
+            "Content-Security-Policy",
+            "X-Frame-Options",
+            "X-XSS-Protection",
+            "Strict-Transport-Security"
+        ]
+
+        for header in important_headers:
+            if header in headers:
+                print(f"[OK] {header} Found")
+            else:
+                print(f"[WARNING] {header} Missing")
+
+    except:
+        print("[-] Failed to fetch headers")
+
+
+def check_sql_injection(url):
+    print("\n[+] Testing SQL Injection...")
+    try:
+        test_url = url + "?id=" + sql_payload
+        response = requests.get(test_url)
+
+        errors = ["sql", "syntax", "mysql", "query failed"]
+
+        for error in errors:
+            if error in response.text.lower():
+                print("[VULNERABLE] Possible SQL Injection Found!")
+                return
+
+        print("[SAFE] No SQL Injection detected (basic test)")
+
+    except:
+        print("[-] SQL test failed")
+
+
+def check_xss(url):
+    print("\n[+] Testing XSS...")
+    try:
+        test_url = url + "?q=" + xss_payload
+        response = requests.get(test_url)
+
+        if xss_payload in response.text:
+            print("[VULNERABLE] Possible XSS Found!")
+        else:
+            print("[SAFE] No XSS detected (basic test)")
+
+    except:
+        print("[-] XSS test failed")
+
+
+def find_forms(url):
+    print("\n[+] Searching Forms...")
+    try:
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, "html.parser")
+        forms = soup.find_all("form")
+
+        print(f"[INFO] Found {len(forms)} forms on page")
+
+        for i, form in enumerate(forms, 1):
+            print(f"\nForm {i}:")
+            print(form)
+
+    except:
+        print("[-] Could not parse forms")
+
+
+def main():
+    url = input("Enter target URL (with http/https): ")
+
+    check_headers(url)
+    check_sql_injection(url)
+    check_xss(url)
+    find_forms(url)
+
+
+if __name__ == "__main__":
+    main()
